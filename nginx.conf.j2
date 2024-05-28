@@ -1,74 +1,124 @@
+# Festlegen des Benutzerkontos fuer den Nginx-Prozess
 user www-data;
+
+# Automatische Erkennung der Anzahl der Arbeiterprozesse basierend auf der Anzahl der CPU-Kerne
 worker_processes auto;
+
+# Pfad zur PID-Datei von Nginx
 pid /run/nginx.pid;
+
+# Einbinden von zusaetzlichen Modulen, die in /etc/nginx/modules-enabled/ definiert sind
 include /etc/nginx/modules-enabled/*.conf;
 
 events {
+    # Maximale Anzahl der gleichzeitigen Verbindungen, die ein Arbeiterprozess handhaben kann
     worker_connections 768;
+
+    # Erlaubt es einem Arbeiterprozess, mehrere Verbindungen gleichzeitig zu akzeptieren (optional)
     # multi_accept on;
 }
 
 http {
     ##
-    # Basic Settings
+    # Grundlegende Einstellungen
     ##
+    # Aktivieren des Sendfile-Mechanismus fuer effizientere Dateiuebertragungen
     sendfile on;
+
+    # Reduziert das Kopieren von Paketen und erhoeht die Performance
     tcp_nopush on;
+
+    # Reduziert die Latenz, indem kleine Pakete sofort gesendet werden
     tcp_nodelay on;
+
+    # Timeout-Wert fuer Keep-Alive-Verbindungen
     keepalive_timeout 65;
+
+    # Maximale Groesse des Hash-Tables fuer MIME-Typen
     types_hash_max_size 2048;
 
+    # Einbinden der MIME-Typen
     include /etc/nginx/mime.types;
+    
+    # Standard-MIME-Typ, wenn kein Typ bestimmt werden kann
     default_type application/octet-stream;
 
     ##
-    # SSL Settings (Schutz vor MitM-Angriffen, sichere Konfiguration von SSL/TLS, Erzwingen sicherer Protokolle)
+    # SSL/TLS Einstellungen
     ##
-    ssl_protocols TLSv1.2 TLSv1.3; # Erzwingen sicherer Protokolle
+    # Zulaessige SSL/TLS-Protokolle
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Bevorzugt die Server-Ziffernsaetze ueber die des Clients
     ssl_prefer_server_ciphers on;
+
+    # Festlegen der zulaessigen Ziffernsaetze fuer SSL/TLS-Verbindungen
     ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
+
+    # Timeout-Wert fuer SSL-Sitzungen
     ssl_session_timeout 1d;
+
+    # Groesse des gemeinsamen Cache-Speichers fuer SSL-Sitzungen
     ssl_session_cache shared:SSL:50m;
+
+    # Deaktiviert SSL-Sitzungstickets fuer zusaetzliche Sicherheit
     ssl_session_tickets off;
 
     ##
-    # HSTS (Schutz vor MitM-Angriffen, HSTS)
+    # Diffie-Hellman-Parameter fuer erhoehte Sicherheit
     ##
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; # HSTS
+    ssl_dhparam /etc/nginx/ssl/dhparam.pem;
 
     ##
-    # Public Key Pinning (Schutz vor MitM-Angriffen, Public Key Pinning)
+    # HTTP Strict Transport Security (HSTS)
     ##
-    # add_header Public-Key-Pins 'pin-sha256="base64+primary=="; pin-sha256="base64+backup=="; max-age=5184000; includeSubDomains';
+    # Erzwingt die Nutzung von HTTPS fuer alle Verbindungen
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     ##
-    # HTTP Headers for Security (Content Security Policy, X-Frame-Options, HTTP-Only und Secure Cookies, SameSite Cookie Attribut)
+    # Sicherheitsrelevante HTTP-Header
     ##
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none';" always; # Content Security Policy
-    add_header X-Frame-Options "DENY" always; # X-Frame-Options
+    # Content Security Policy (CSP) zur Verhinderung von XSS-Angriffen
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none';" always;
+
+    # Verhindert Clickjacking durch Festlegen, dass die Seite nicht in einem Frame eingebettet werden darf
+    add_header X-Frame-Options "DENY" always;
+
+    # Verhindert MIME-Type-Sniffing
     add_header X-Content-Type-Options "nosniff" always;
+
+    # Aktiviert den XSS-Schutz im Browser
     add_header X-XSS-Protection "1; mode=block" always;
 
     ##
-    # Rate Limiting (Rate Limiting)
+    # Rate Limiting
     ##
+    # Definiert eine Zone fuer Rate Limiting, um die Anzahl der Anfragen pro IP zu begrenzen
     limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
 
     ##
-    # Logging Settings (Überwachung und Protokollierung)
+    # Logging Einstellungen
     ##
+    # Pfad zur Access-Log-Datei
     access_log /var/log/nginx/access.log;
+
+    # Pfad zur Error-Log-Datei
     error_log /var/log/nginx/error.log;
 
     ##
-    # Gzip Settings
+    # Gzip-Komprimierung
     ##
+    # Aktiviert Gzip-Komprimierung
     gzip on;
+
+    # Deaktiviert Gzip-Komprimierung fuer den Internet Explorer 6
     gzip_disable "msie6";
 
     ##
-    # Virtual Host Configs
+    # Einbinden der Konfigurationsdateien fuer virtuelle Hosts
     ##
     include /etc/nginx/conf.d/*.conf;
+
+    # Einbinden der Site-spezifischen Konfigurationsdateien
     include /etc/nginx/sites-enabled/*;
 }
