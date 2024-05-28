@@ -22,13 +22,40 @@ http {
     default_type application/octet-stream;
 
     ##
-    # SSL Settings
+    # SSL Settings (Schutz vor MitM-Angriffen, sichere Konfiguration von SSL/TLS, Erzwingen sicherer Protokolle)
     ##
-    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_protocols TLSv1.2 TLSv1.3; # Erzwingen sicherer Protokolle
     ssl_prefer_server_ciphers on;
+    ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:50m;
+    ssl_session_tickets off;
 
     ##
-    # Logging Settings
+    # HSTS (Schutz vor MitM-Angriffen, HSTS)
+    ##
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; # HSTS
+
+    ##
+    # Public Key Pinning (Schutz vor MitM-Angriffen, Public Key Pinning)
+    ##
+    # add_header Public-Key-Pins 'pin-sha256="base64+primary=="; pin-sha256="base64+backup=="; max-age=5184000; includeSubDomains';
+
+    ##
+    # HTTP Headers for Security (Content Security Policy, X-Frame-Options, HTTP-Only und Secure Cookies, SameSite Cookie Attribut)
+    ##
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none';" always; # Content Security Policy
+    add_header X-Frame-Options "DENY" always; # X-Frame-Options
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    ##
+    # Rate Limiting (Rate Limiting)
+    ##
+    limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+
+    ##
+    # Logging Settings (Überwachung und Protokollierung)
     ##
     access_log /var/log/nginx/access.log;
     error_log /var/log/nginx/error.log;
