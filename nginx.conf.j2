@@ -1,4 +1,4 @@
-# Festlegen des Benutzerkontos fuer den Nginx-Prozess
+# Festlegen des Benutzerkontos für den Nginx-Prozess
 user www-data;
 
 # Automatische Erkennung der Anzahl der Arbeiterprozesse basierend auf der Anzahl der CPU-Kerne
@@ -7,7 +7,7 @@ worker_processes auto;
 # Pfad zur PID-Datei von Nginx
 pid /run/nginx.pid;
 
-# Einbinden von zusaetzlichen Modulen, die in /etc/nginx/modules-enabled/ definiert sind
+# Einbinden von zusätzlichen Modulen, die in /etc/nginx/modules-enabled/ definiert sind
 include /etc/nginx/modules-enabled/*.conf;
 
 events {
@@ -22,22 +22,22 @@ http {
     ##
     # Grundlegende Einstellungen
     ##
-    # Aktivieren des Sendfile-Mechanismus fuer effizientere Dateiuebertragungen
+    # Aktivieren des Sendfile-Mechanismus für effizientere Dateiübertragungen
     sendfile on;
 
-    # Reduziert das Kopieren von Paketen und erhoeht die Performance
+    # Reduziert das Kopieren von Paketen und erhöht die Performance durch direkte Speicherzuweisungen
     tcp_nopush on;
 
     # Reduziert die Latenz, indem kleine Pakete sofort gesendet werden
     tcp_nodelay on;
 
-    # Timeout-Wert fuer Keep-Alive-Verbindungen
+    # Timeout-Wert für Keep-Alive-Verbindungen (Zeitspanne, in der Verbindungen offen bleiben)
     keepalive_timeout 65;
 
-    # Maximale Groesse des Hash-Tables fuer MIME-Typen
+    # Maximale Größe des Hash-Tables für MIME-Typen (Optimierung der MIME-Typ-Suche)
     types_hash_max_size 2048;
 
-    # Einbinden der MIME-Typen
+    # Einbinden der MIME-Typen aus einer externen Datei
     include /etc/nginx/mime.types;
     
     # Standard-MIME-Typ, wenn kein Typ bestimmt werden kann
@@ -46,33 +46,33 @@ http {
     ##
     # SSL/TLS Einstellungen
     ##
-    # Zulaessige SSL/TLS-Protokolle
+    # Zulässige SSL/TLS-Protokolle (nur sichere Protokolle zulassen)
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    # Bevorzugt die Server-Ziffernsaetze ueber die des Clients
+    # Bevorzugt die Server-Ziffernsaetze über die des Clients
     ssl_prefer_server_ciphers on;
 
-    # Festlegen der zulaessigen Ziffernsaetze fuer SSL/TLS-Verbindungen
+    # Festlegen der zulässigen Ziffernsätze für SSL/TLS-Verbindungen (starke Verschlüsselung)
     ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
 
-    # Timeout-Wert fuer SSL-Sitzungen
-    ssl_session_timeout 1d;
+    # Timeout-Wert für SSL-Sitzungen (hier auf 10 Stunden erhöht)
+    ssl_session_timeout 10h;
 
-    # Groesse des gemeinsamen Cache-Speichers fuer SSL-Sitzungen
+    # Größe des gemeinsamen Cache-Speichers für SSL-Sitzungen
     ssl_session_cache shared:SSL:50m;
 
-    # Deaktiviert SSL-Sitzungstickets fuer zusaetzliche Sicherheit
+    # Deaktiviert SSL-Sitzungstickets für zusätzliche Sicherheit
     ssl_session_tickets off;
 
     ##
-    # Diffie-Hellman-Parameter fuer erhoehte Sicherheit
+    # Diffie-Hellman-Parameter für erhöhte Sicherheit
     ##
     ssl_dhparam /etc/nginx/ssl/dhparam.pem;
 
     ##
     # HTTP Strict Transport Security (HSTS)
     ##
-    # Erzwingt die Nutzung von HTTPS fuer alle Verbindungen
+    # Erzwingt die Nutzung von HTTPS für alle Verbindungen (1 Jahr)
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     ##
@@ -82,7 +82,7 @@ http {
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; frame-ancestors 'none';" always;
 
     # Verhindert Clickjacking durch Festlegen, dass die Seite nicht in einem Frame eingebettet werden darf
-    add_header X-Frame-Options "DENY" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
 
     # Verhindert MIME-Type-Sniffing
     add_header X-Content-Type-Options "nosniff" always;
@@ -90,10 +90,22 @@ http {
     # Aktiviert den XSS-Schutz im Browser
     add_header X-XSS-Protection "1; mode=block" always;
 
+    # Steuerung des Referrer-Policy-Headers (verhindert die Weitergabe des Referrers)
+    add_header Referrer-Policy "no-referrer" always;
+
+    # Steuerung des X-Robots-Tag-Headers (verhindert das Indexieren durch Suchmaschinen)
+    add_header X-Robots-Tag "none" always;
+
+    # Steuerung des X-Download-Options-Headers (verhindert das automatische Öffnen von Downloads)
+    add_header X-Download-Options "noopen" always;
+
+    # Steuerung des X-Permitted-Cross-Domain-Policies-Headers (verhindert das Laden von Ressourcen von anderen Domains)
+    add_header X-Permitted-Cross-Domain-Policies "none" always;
+
     ##
     # Rate Limiting
     ##
-    # Definiert eine Zone fuer Rate Limiting, um die Anzahl der Anfragen pro IP zu begrenzen
+    # Definiert eine Zone für Rate Limiting, um die Anzahl der Anfragen pro IP zu begrenzen
     limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
 
     ##
@@ -108,17 +120,33 @@ http {
     ##
     # Gzip-Komprimierung
     ##
-    # Aktiviert Gzip-Komprimierung
+    # Aktiviert Gzip-Komprimierung für effizientere Datenübertragung
     gzip on;
 
-    # Deaktiviert Gzip-Komprimierung fuer den Internet Explorer 6
+    # Deaktiviert Gzip-Komprimierung für den Internet Explorer 6 (Kompatibilitätsgründe)
     gzip_disable "msie6";
 
     ##
-    # Einbinden der Konfigurationsdateien fuer virtuelle Hosts
+    # Einbinden der Konfigurationsdateien für virtuelle Hosts
     ##
+    # Einbinden der allgemeinen Konfigurationsdateien
     include /etc/nginx/conf.d/*.conf;
 
     # Einbinden der Site-spezifischen Konfigurationsdateien
     include /etc/nginx/sites-enabled/*;
+        server {
+            ##
+            # Spezielle Einstellungen für robots.txt
+            ##
+            location = /robots.txt {
+                # Erlaubt den Zugriff auf robots.txt für alle Benutzer
+                allow all;
+
+                # Deaktiviert das Logging von 404-Fehlern für diese Datei
+                log_not_found off;
+
+                # Deaktiviert das Access-Logging für diese Datei
+                access_log off;
+            }        
+        }    
 }

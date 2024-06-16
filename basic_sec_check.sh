@@ -1,95 +1,75 @@
 #!/bin/bash
 
-# URL der Nginx-Server
-URL="https://your-nginx-server.com"
+# URL of your Nginx server (replace with your server IP or hostname)
+URL="http://141.100.235.124/"
 
-# Ueberpruefen von HTTP Strict Transport Security (HSTS)
-check_hsts() {
-    echo "Ueberpruefe HSTS..."
-    RESPONSE=$(curl -s -D- $URL | grep -i Strict-Transport-Security)
+# Function to check if a header is present in the response
+check_header() {
+    local HEADER="$1"
+    echo "Checking $HEADER..."
+    RESPONSE=$(curl -s -D- $URL | grep -i $HEADER)
     if [[ -n "$RESPONSE" ]]; then
-        echo "HSTS ist konfiguriert: $RESPONSE"
+        echo "$HEADER is present: $RESPONSE"
     else
-        echo "HSTS fehlt!"
+        echo "$HEADER is missing!"
     fi
 }
 
-# Ueberpruefen von SSL/TLS Konfiguration
-check_ssl_tls() {
-    echo "Ueberpruefe SSL/TLS Konfiguration..."
-    SSL_PROTOCOLS=$(echo | openssl s_client -connect your-nginx-server.com:443 -tls1_2 2>/dev/null)
-    if [[ -n "$SSL_PROTOCOLS" ]]; then
-        echo "TLS 1.2 ist unterstuetzt."
+# Function to check if Nginx serves content correctly
+check_content() {
+    echo "Checking if Nginx serves content..."
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $URL)
+    if [[ "$HTTP_STATUS" == "200" ]]; then
+        echo "Nginx is serving content correctly. HTTP status: $HTTP_STATUS"
     else
-        echo "TLS 1.2 wird nicht unterstuetzt!"
-    fi
-
-    SSL_PROTOCOLS=$(echo | openssl s_client -connect your-nginx-server.com:443 -tls1_3 2>/dev/null)
-    if [[ -n "$SSL_PROTOCOLS" ]]; then
-        echo "TLS 1.3 ist unterstuetzt."
-    else
-        echo "TLS 1.3 wird nicht unterstuetzt!"
+        echo "Failed to retrieve content from Nginx. HTTP status: $HTTP_STATUS"
     fi
 }
 
-# Ueberpruefen von Content Security Policy (CSP)
-check_csp() {
-    echo "Ueberpruefe Content Security Policy (CSP)..."
-    RESPONSE=$(curl -s -D- $URL | grep -i Content-Security-Policy)
-    if [[ -n "$RESPONSE" ]]; then
-        echo "CSP ist konfiguriert: $RESPONSE"
+# Function to check Gzip compression
+check_gzip() {
+    echo "Checking Gzip compression..."
+    RESPONSE=$(curl -s -H "Accept-Encoding: gzip" -D- $URL)
+    CONTENT_ENCODING=$(echo "$RESPONSE" | grep -i "Content-Encoding")
+    if [[ "$CONTENT_ENCODING" =~ gzip ]]; then
+        echo "Gzip compression is enabled."
     else
-        echo "CSP fehlt!"
+        echo "Gzip compression is not enabled."
     fi
 }
 
-# Ueberpruefen von X-Frame-Options
-check_x_frame_options() {
-    echo "Ueberpruefe X-Frame-Options..."
-    RESPONSE=$(curl -s -D- $URL | grep -i X-Frame-Options)
-    if [[ -n "$RESPONSE" ]]; then
-        echo "X-Frame-Options ist konfiguriert: $RESPONSE"
-    else
-        echo "X-Frame-Options fehlt!"
-    fi
+# Function to check HTTP Headers related to security
+check_security_headers() {
+    echo "Checking HTTP security headers..."
+    check_header "Strict-Transport-Security"
+    check_header "Content-Security-Policy"
+    check_header "X-Frame-Options"
+    check_header "X-Content-Type-Options"
 }
 
-# Ueberpruefen von X-Content-Type-Options
-check_x_content_type_options() {
-    echo "Ueberpruefe X-Content-Type-Options..."
-    RESPONSE=$(curl -s -D- $URL | grep -i X-Content-Type-Options)
-    if [[ -n "$RESPONSE" ]]; then
-        echo "X-Content-Type-Options ist konfiguriert: $RESPONSE"
-    else
-        echo "X-Content-Type-Options fehlt!"
-    fi
-}
-
-# Ueberpruefen von Rate Limiting
+# Function to perform rate limiting test
 check_rate_limiting() {
-    echo "Ueberpruefe Rate Limiting..."
+    echo "Checking Rate Limiting..."
     IP="your_test_ip"
     for i in {1..5}; do
         RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $URL --interface $IP)
         if [[ "$RESPONSE" == "200" ]]; then
-            echo "Anfrage $i erfolgreich"
+            echo "Request $i successful"
         else
-            echo "Anfrage $i blockiert: HTTP $RESPONSE"
+            echo "Request $i blocked: HTTP $RESPONSE"
         fi
     done
 }
 
-# Hauptfunktion zur Ausfuehrung der Tests
+# Main function to execute all checks
 main() {
-    echo "Starte Sicherheitsueberpruefung fuer $URL"
-    check_hsts
-    check_ssl_tls
-    check_csp
-    check_x_frame_options
-    check_x_content_type_options
+    echo "Starting health and security check for $URL"
+    check_security_headers
+    check_content
+    check_gzip
     check_rate_limiting
-    echo "Sicherheitsueberpruefung abgeschlossen."
+    echo "Health and security check completed."
 }
 
-# Skript ausfuehren
+# Execute the main function
 main
