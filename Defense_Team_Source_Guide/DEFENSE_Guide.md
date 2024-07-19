@@ -1,4 +1,4 @@
-# ATTACK-Team: Step-by-Step Guide
+# DEFENSE-Team: Step-by-Step Guide
 
 Auf eurem Steuerungsrechner (Control Node) wurde das NGINX und Ansbile Paket bereits installiert, so dass ihr direkt mit der Installation beginnen könnt.
 
@@ -49,9 +49,6 @@ Füge den folgenden Inhalt hinzu und ersetze “your\_server\_ip” durch die IP
 ```bash
 [nginx]
 !!!!!!!PUT YOUR NGINX SERVER IPV6 HERE!!!!!!!
-
-[mhddos]
-!!!!!!!PUT YOUR MHDDOS SERVER IPV6 HERE!!!!!!!
 ```
 
 Überprüfe die Verbindung zu dem Servern mit dem ansible ping, das Ergebnis sollte pong sein, was bedeutet, dass die Verbindung erfolgreich war
@@ -60,7 +57,7 @@ Füge den folgenden Inhalt hinzu und ersetze “your\_server\_ip” durch die IP
 ansible -i ~/Schreibtisch/ansible/inventory/hosts all -m ping --user ubuntu --private-key ~/.ssh/id_rsa
 ```
 
-![Untitled](ATTACK-Team%20Step-by-Step%20Guide%20e5f4ab167c3144bd9a27c654625e6f2b/Untitled.png)
+![Untitled](images/D0)
 
 ### Schritt 3: Ansible Playbook erstellen
 
@@ -283,7 +280,7 @@ Führe das Playbook mit Ansible aus (dauert einige Zeit)
 ansible-playbook ~/Schreibtisch/ansible/playbooks/install_nginx.yml --user ubuntu --private-key ~/.ssh/id_rsa -i ~/Schreibtisch/ansible/inventory/hosts
 ```
 
-![Untitled](ATTACK-Team%20Step-by-Step%20Guide%20e5f4ab167c3144bd9a27c654625e6f2b/Untitled%201.png)
+![Untitled](images/D1)
 
 ### Schritt 6: Überprüfe die Installation
 
@@ -295,7 +292,7 @@ ssh -i ~/.ssh/id_rsa ubuntu@!!!!!!!PUT YOUR NGINX SERVER IPV6 HERE!!!!!!!
 
 Wenn das erfolgreich war sollte es wie folgt aussehen (ggfs. anderer Team Name):
 
-![Untitled](ATTACK-Team%20Step-by-Step%20Guide%20e5f4ab167c3144bd9a27c654625e6f2b/Untitled%202.png)
+![Untitled](images/D2)
 
 Nun prüft ob der Nginx Service läuft
 
@@ -303,11 +300,11 @@ Nun prüft ob der Nginx Service läuft
 systemctl status nginx
 ```
 
-![Untitled](ATTACK-Team%20Step-by-Step%20Guide%20e5f4ab167c3144bd9a27c654625e6f2b/Untitled%203.png)
+![Untitled](images/D3)
 
 Rufe die floating IP im Browser auf, Du solltest nun folgendes sehen
 
-![Untitled](ATTACK-Team%20Step-by-Step%20Guide%20e5f4ab167c3144bd9a27c654625e6f2b/Untitled%204.png)
+![Untitled](images/D4)
 
 Glückwunsch, dein NGINX Webserver läuft!
 
@@ -321,156 +318,68 @@ Aktiviere mit folgendem Befehl das Monitoring und lasse das Fenster geöffnet um
 htop
 ```
 
-## Quest 2: DDos Tool aufsetzen
+## Quest 2: NGINX gegen DDOS Angriffe absichern
 
-### Schritt 1:  Ansible Playbook erstellen
+### Schritt 1: Weiteres Ansible Playbook erstellen
 
-Erstelle das Ansible Playbook zum Aufsetzen der DDos Software
+Erstelle ein weiteres Ansible Playbook mit dem die Konfiguration aktualisiert werden kann
 
 ```bash
-nano playbooks/install_MHDDoS.yml
+nano ~/Schreibtisch/ansible/playbooks/update_nginx_config.yml
 ```
 
 Fügen folgenden Inhalt ein
 
 ```yaml
 ---
-- name: Install MHDDoS on a Linux server
-  hosts: mhddos
-  become: true
-
+- name: Update Nginx configuration
+  hosts: nginx
+  become: yes
+  vars:
+    nginx_conf_template: /etc/nginx/nginx.conf
   tasks:
-    - name: Update the package list
-      apt:
-        update_cache: yes
+    - name: Backup current Nginx configuration
+      copy:
+        src: "{{ nginx_conf_template }}"
+        dest: "{{ nginx_conf_template }}.backup"
+        remote_src: yes
 
-    - name: Ensure Python 3 and virtualenv are installed
-      apt:
-        name:
-          - python3
-          - python3-pip
-          - python3-venv
-        state: present
+    - name: Update Nginx configuration file from template
+      template:
+        src: ~/Schreibtisch/ansible/nginx/nginx.conf.j2
+        dest: "{{ nginx_conf_template }}"
+      notify:
+        - restart nginx
 
-    - name: Ensure git is installed
-      apt:
-        name: git
-        state: present
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test_result
+      changed_when: false
+      failed_when: nginx_test_result.rc != 0
 
-    - name: Install required system packages
-      apt:
-        name:
-          - build-essential
-          - libssl-dev
-          - libffi-dev
-          - python3-dev
-          - libjpeg-dev
-          - zlib1g-dev
-          - libblas-dev
-          - liblapack-dev
-          - gfortran
-        state: present
-
-    - name: Clone the MHDDoS repository
-      git:
-        repo: 'https://github.com/MatrixTM/MHDDoS.git'
-        dest: /opt/MHDDoS
-        update: yes
-
-    - name: Create a virtual environment
-      command: python3 -m venv /opt/MHDDoS/venv
-      args:
-        creates: /opt/MHDDoS/venv
-
-    - name: Upgrade pip in the virtual environment
-      command: /opt/MHDDoS/venv/bin/pip install --upgrade pip
-
-    - name: Install necessary Python packages in the virtual environment
-      pip:
-        name:
-          - setuptools
-          - wheel
-          - flask
-          - PyRoxy
-        virtualenv: /opt/MHDDoS/venv
-        virtualenv_command: /usr/bin/python3 -m venv
-
-    - name: Install required Python packages from requirements.txt in the virtual environment
-      pip:
-        requirements: /opt/MHDDoS/requirements.txt
-        virtualenv: /opt/MHDDoS/venv
-        virtualenv_command: /usr/bin/python3 -m venv
-
-    - name: Run MHDDoS script
-      command: /opt/MHDDoS/venv/bin/python /opt/MHDDoS/start.py
-      args:
-        chdir: /opt/MHDDoS/
-      register: mhddos_output
-
-    - name: Print MHDDoS output
-      debug:
-        var: mhddos_output.stdout
+  handlers:
+    - name: restart nginx
+      systemd:
+        name: nginx
+        state: restarted
 ```
 
-### Schritt 2: Playbook ausführen
+### Schritt 2: Aktualisieren der Konfiguration
 
-Führe das Playbook mit Ansible aus (dauert einige Zeit)
+Nun könnt ihr die in Quest 1 Schritt 4 erstelle Konfiguration erweitern. 
 
 ```bash
-ansible-playbook ~/Schreibtisch/ansible/playbooks/install_MHDDoS.yml --user ubuntu --private-key ~/.ssh/id_rsa -i ~/Schreibtisch/ansible/inventory/hosts
+nano nginx/nginx.conf.j2
 ```
 
-### Schritt 3: SSH Verbindung
+Kleiner Tipp, vielleicht findet ihr hier etwas in den Modulen: [https://nginx.org/en/docs/be](https://nginx.org/en/docs/)
 
-Verbindet euch über SSH mit der “MHDDoS Instanz” 
+### Schritt 3: Aktualisierung mit Playbook deployen
+
+Führt das Playbook mit Ansible aus um die aktualsierte Konfiguration auf den Server zu deployen
 
 ```bash
-ssh -i ~/.ssh/id_rsa ubuntu@<your-server-ip>
+ansible-playbook ~/Schreibtisch/ansible/playbooks/update_nginx_config.yml --user ubuntu --private-key ~/.ssh/id_rsa -i ~/Schreibtisch/ansible/inventory/hosts
 ```
 
-Wenn das erfolgreich war solltet es wie folgt aussehen:
-
-![Untitled](ATTACK-Team%20Step-by-Step%20Guide%20e5f4ab167c3144bd9a27c654625e6f2b/Untitled%205.png)
-
-### Schritt 4: Der erste DDos Angriff
-
-Wechsel nun in das Verzeichnis der Dos Anwendung: /opt/MHDDoS
-
-```bash
-cd /opt/MHDDoS/
-```
-
-Bevor wir loslegen müssen wir noch die virtuelle Umgebung aktivierten
-
-```bash
-source venv/bin/activate
-```
-
-DDos Angriffe lassen sich nun über die Kommandozeile mit folgendem Syntax starten
-
-```bash
-python3 start.py <1=method> <2=url> <3=socks_type> <4=threads> <5=proxylist> <6=rpc> <7=duration> <8=debug=optional>
-```
-
-Hier eine Erklärung der einzelnen Parameter:
-
-- Method (type of attack)
-- Target URL or IP Address
-- Proxy Version ([Proxy Usage](https://github.com/MHProDev/MHDDoS/wiki/Proxy-Support-!))
-- Proxy File ([Proxy File Format](https://github.com/MHProDev/MHDDoS/wiki/Proxy-Files))
-- Number of threads to use ([Multi Threading](https://en.wikipedia.org/wiki/Multithreading_(computer_architecture)))
-- RPC (Requests pre connection)
-- Duration (Time to finish attack in seconds)
-- Debug Mode (Optional)
-
-<aside>
-⚠️ Startet langsam! Ziel ist es die Auslastung nie über 50% zu treiben!
-
-</aside>
-
-Dies ist ein Beispiel Command mit dem ihr starten könnt:
-
-```bash
-# Running udp attack from 100 threads, for 10 seconds  
-python start.py connection 1.1.1.1 100 10
-```
+Ziel ist es die Konfiguration gegen DDOS Angriffe abzusichern. Am Ende der Übung wird eure Instanz vom Attack-Team angegriffen
